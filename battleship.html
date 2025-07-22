@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+
+<body>
+
+  <div style="text-align: center;">
+    <h1>The Battleship Game</h1>
+
+    <p>Click the play button to continue.</p>
+
+    <div id="logs"></div>
+
+    <button id="reset-btn" onclick="init()">Reset</button>
+    <button id="play-btn" onclick="play()">Play</button>
+  </div>
+
+  <script>
+    const ships = ['BS', 'DT', 'DT'];
+    let rows = [];
+    let cols = [];
+
+    let grid = {};
+    let hitCounts = {};
+    let totalShips = 3;
+
+    function play() {
+      let coordinate = prompt("Enter coordinate (E.g A5)");
+
+      if (!coordinate) return;
+
+      const logEntry = document.createElement('p');
+      if (coordinate) {
+        const col = coordinate.charAt(0).toUpperCase();
+        const row = parseInt(coordinate.slice(1)) - 1;
+
+        if ((!rows.includes(row)) || (!cols.includes(col))) {
+          alert('out of bound');
+          return;
+        }
+
+        if (!!grid[col][row] && grid[col][row] !== 'X') {
+          const ship = grid[col][row];
+          grid[col][row] = 'X';
+          hitCounts[ship] = hitCounts[ship] + 1;
+          logEntry.innerHTML = `Point ${coordinate}: <b>Hit<b/>`;
+          document.getElementById("logs").appendChild(logEntry);
+
+          const shipType = `${ship}`.split('-')[0];
+          if (shipType === 'BS' && hitCounts[ship] === 5) {
+            totalShips--;
+            const newLogEntry = document.createElement('p');
+            newLogEntry.innerHTML = `Battleship ${ship}: <b>Sunk<b/>`;
+            document.getElementById("logs").appendChild(newLogEntry);
+          } else if (shipType === 'DT' && hitCounts[ship] === 2) {
+            totalShips--;
+            const newLogEntry = document.createElement('p');
+            newLogEntry.innerHTML = `Destroyer ${ship}: <b>Sunk<b/>`;
+            document.getElementById("logs").appendChild(newLogEntry);
+          }
+        } else {
+          logEntry.innerHTML = `Point ${coordinate}: <b>Miss<b/>`;
+          document.getElementById("logs").appendChild(logEntry);
+        }
+
+        if (totalShips === 0) {
+          const newLogEntry = document.createElement('p');
+          newLogEntry.innerHTML = `<b>Game Over: All ships has been sunk!!!<b/>`;
+          document.getElementById("logs").appendChild(newLogEntry);
+          document.getElementById('play-btn').setAttribute('disabled', true);
+        }
+      }
+    }
+
+    function init() {
+      document.getElementById("logs").innerHTML = '';
+
+      // Initialize cols with Alphabets and rows with integers
+      rows = Array.from({ length: 10 }, (e, i) => (i + 1));
+      cols = Array.from({ length: 10 }, (e, i) => String.fromCharCode(i + 65));
+
+      grid = cols.reduce((acc, col) => { acc[col] = new Array(10); return acc }, {});
+      hitCounts = {};
+      totalShips = 3;
+      // console.log(grid, 'grid')
+
+      let checkedPoints = [];
+
+      const selectRandomPoint = () => {
+        const colIdx = Math.floor(Math.random() * cols.length);
+        const col = cols[colIdx];
+        const rowIdx = Math.floor(Math.random() * rows.length);
+        const row = rows[rowIdx];
+        const cord = `${col}${row}`;
+        if (checkedPoints.includes(cord) && checkedPoints.length !== (cols.length * rows.length)) {
+          return selectRandomPoint();
+        } else if (checkedPoints.includes(cord) && checkedPoints.length === (cols.length * rows.length)) {
+          return;
+        }
+
+        return [col, row];
+      }
+
+      const placeShip = (ort = 'V', type, key, start, end) => {
+        const shipID = `${type === 'BS' ? 'BS' : 'DT'}-${key}_${start + 1}${end}`;
+        if (ort === 'V') {
+          for (let i = start; i < end; i++) {
+            grid[key][i] = shipID;
+          };
+        } else {
+          for (let i = start; i < end; i++) {
+            grid[cols[i]][key] = shipID;
+          };
+        }
+        // console.log('ship placed', shipID);
+        hitCounts[shipID] = 0;
+        return shipID;
+      }
+
+      // Setup ships, types: 'BS' - Battleship and 'DT' - Destroyer
+      const setShip = (cord = [], type) => {
+        const squares = type === 'BS' ? 5 : 2;
+
+        const col = cord[0];
+        const row = cord[1];
+
+        const colIdx = cols.indexOf(col);
+
+        const bottom = [...grid[col]].slice(row, row + squares).filter(p => p === undefined).length >= squares;
+        const top = (row - squares >= 0) && [...grid[col]].slice(row - squares, row).filter(p => p === undefined).length >= squares;
+        const right = [...cols.map((col) => grid[col][row])].slice(colIdx, colIdx + squares).filter(p => p === undefined).length >= squares;
+        const left = (colIdx - squares >= 0) && [...cols.map((col) => grid[col][row])].slice(colIdx - squares, colIdx).filter(p => p === undefined).length >= squares;
+
+        if (bottom) {
+          const start = row;
+          const end = start + squares;
+          return placeShip('V', type, col, start, end);
+        } else if (top) {
+          const start = row - squares;
+          const end = row;
+          return placeShip('V', type, col, start, end);
+        } else if (right) {
+          const start = colIdx;
+          const end = colIdx + squares;
+          return placeShip('H', type, row, start, end);
+        } else if (left) {
+          const start = colIdx - squares;
+          const end = colIdx;
+          return placeShip('H', type, row, start, end);
+        } else {
+          checkedPoints.push(`${col}${row}`);
+          const nextPoint = selectRandomPoint();
+          if (nextPoint) {
+            return setShip(nextPoint, type);
+          } else {
+            console.warn("can't set ship");
+            return;
+          }
+        }
+      }
+
+      ships.forEach(ship => {
+        checkedPoints = [];
+        setShip((selectRandomPoint() ?? [cols[0], rows[0]]), ship);
+      });
+    };
+
+    init();
+  </script>
+
+</body>
+
+</html>
